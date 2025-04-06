@@ -25,12 +25,12 @@ def create_app():
     # Registro de Blueprints
     from .routes.auth_routes import auth_bp
     from .routes.product_routes import product_bp
-    #from .routes.cart_routes import cart_bp
+    from .routes.cart_routes import cart_bp
     #from .routes.order_routes import order_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(product_bp, url_prefix='/api/products')
-    #app.register_blueprint(cart_bp, url_prefix='/api/cart')
+    app.register_blueprint(cart_bp, url_prefix='/api/cart')
     #app.register_blueprint(order_bp, url_prefix='/api/orders')
 
     return app
