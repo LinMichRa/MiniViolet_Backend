@@ -1,0 +1,8 @@
+flask
+flask_sqlalchemy
+flask_login
+flask_jwt_extended
+bcrypt
+python-dotenv
+mysqlclient
+celery
