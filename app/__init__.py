@@ -13,13 +13,15 @@ jwt = JWTManager()
 
 def create_app():
     load_dotenv()
+    #print(os.getenv("DATABASE_URI"))
+    
     app = Flask(__name__)
     app.config.from_object(Config)
 
     db.init_app(app)
     login_manager.init_app(app)
     jwt.init_app(app)
-
+    #print("DB URI en Flask:", app.config.get("SQLALCHEMY_DATABASE_URI"))
     # Registro de Blueprints
     from .routes.auth_routes import auth_bp
     #from .routes.product_routes import product_bp
