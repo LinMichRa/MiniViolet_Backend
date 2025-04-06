@@ -1,6 +1,7 @@
 #CREAR PRODUCTO (condicion rol admin)
+import os
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity,get_jwt
 from .. import db
 from ..models.models import Product
 
@@ -22,29 +23,40 @@ def get_products():
 @product_bp.route('/', methods=['POST'])
 @jwt_required()
 def create_product():
-    user = get_jwt_identity()
-    if user['rol'] != 'admin':
+    from flask_jwt_extended import get_jwt_identity, get_jwt
+
+    user_id = get_jwt_identity()
+    claims = get_jwt()
+    rol = claims.get("rol")
+
+    if rol != 'admin':
         return jsonify({'msg': 'Solo administradores pueden crear productos'}), 403
 
     data = request.json
-    product = Product(
-        nombre=data['nombre'],
-        descripcion=data.get('descripcion'),
-        precio=data['precio'],
-        categoria=data['categoria'],
-        imagen_url=data.get('imagen_url'),
-        stock=data['stock'],
-        created_by=user['id']
-    )
-    db.session.add(product)
-    db.session.commit()
-    return jsonify({'msg': 'Producto creado exitosamente'})
+    try:
+        product = Product(
+            nombre=data['nombre'],
+            descripcion=data.get('descripcion'),
+            precio=data['precio'],
+            categoria=data['categoria'],
+            imagen_url=data.get('imagen_url'),
+            stock=data['stock'],
+            created_by=int(user_id)
+        )
+        db.session.add(product)
+        db.session.commit()
+        return jsonify({'msg': 'Producto creado exitosamente'}), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'msg': 'Error al crear el producto', 'error': str(e)}), 500
+
 
 @product_bp.route('/<int:id>', methods=['PUT'])
 @jwt_required()
 def update_product(id):
-    user = get_jwt_identity()
-    if user['rol'] != 'admin':
+    claims = get_jwt()
+    if claims.get('rol') != 'admin':
         return jsonify({'msg': 'No autorizado'}), 403
 
     product = Product.query.get_or_404(id)
@@ -58,8 +70,8 @@ def update_product(id):
 @product_bp.route('/<int:id>', methods=['DELETE'])
 @jwt_required()
 def delete_product(id):
-    user = get_jwt_identity()
-    if user['rol'] != 'admin':
+    claims = get_jwt()
+    if claims.get('rol') != 'admin':
         return jsonify({'msg': 'No autorizado'}), 403
     product = Product.query.get_or_404(id)
     db.session.delete(product)
