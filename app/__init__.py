@@ -5,11 +5,8 @@ from flask_jwt_extended import JWTManager
 from .config import Config
 from dotenv import load_dotenv
 import os
-from .routes.auth_routes import auth_bp
-#from .routes.product_routes import product_bp
-#from .routes.cart_routes import cart_bp
-#from .routes.order_routes import order_bp
 
+# Extensiones
 db = SQLAlchemy()
 login_manager = LoginManager()
 jwt = JWTManager()
@@ -24,7 +21,10 @@ def create_app():
     jwt.init_app(app)
 
     # Registro de Blueprints
-    
+    from .routes.auth_routes import auth_bp
+    #from .routes.product_routes import product_bp
+    #from .routes.cart_routes import cart_bp
+    #from .routes.order_routes import order_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     #app.register_blueprint(product_bp, url_prefix='/api/products')
