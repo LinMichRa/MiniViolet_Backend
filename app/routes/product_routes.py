@@ -5,6 +5,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity,get_jwt
 from .. import db
 from ..models.models import Category, Product
 from ..utils.s3_helper import subir_a_s3
+from ..utils.s3_upload import subir_a_s3
 from dotenv import load_dotenv
 
 product_bp = Blueprint('products', __name__)
@@ -87,13 +88,21 @@ def update_product(id):
     if claims.get('rol') != 'admin':
         return jsonify({'msg': 'No autorizado'}), 403
 
-    product = Product.query.get_or_404(id)
-    data = request.json
-    for field in ['nombre', 'descripcion', 'precio', 'categoria', 'imagen_url', 'stock']:
-        if field in data:
-            setattr(product, field, data[field])
+    producto = Product.query.get_or_404(id)
+
+    producto.nombre = request.form.get('nombre')
+    producto.descripcion = request.form.get('descripcion')
+    producto.precio = request.form.get('precio')
+    producto.categoria = request.form.get('categoria')
+    producto.stock = request.form.get('stock')
+
+    imagen = request.files.get('imagen')
+    if imagen:
+        imagen_url = subir_a_s3(imagen, folder='productos')
+        producto.imagen_url = imagen_url
+
     db.session.commit()
-    return jsonify({'msg': 'Producto actualizado'})
+    return jsonify({'msg': 'Producto actualizado correctamente'})
 
 @product_bp.route('/<int:id>', methods=['DELETE'])
 @jwt_required()
