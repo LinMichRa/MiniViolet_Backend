@@ -3,7 +3,7 @@ import os
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity,get_jwt
 from .. import db
-from ..models.models import Product
+from ..models.models import Category, Product
 from ..utils.s3_helper import subir_a_s3
 from dotenv import load_dotenv
 
@@ -40,18 +40,25 @@ def create_product():
     try:
         nombre = request.form['nombre']
         descripcion = request.form.get('descripcion')
-        precio = float(request.form['precio'])  # Convierte a número
-        categoria = request.form['categoria']
-        stock = int(request.form['stock'])      # Convierte a número
+        precio = float(request.form['precio'])
+        categoria_nombre = request.form['categoria'].strip().lower()  # Normaliza
+        stock = int(request.form['stock'])
         file = request.files.get('imagen')
 
+        # Buscar o crear la categoría
+        categoria = Category.query.filter_by(nombre=categoria_nombre).first()
+        if not categoria:
+            categoria = Category(nombre=categoria_nombre)
+            db.session.add(categoria)
+            db.session.flush()
+
         imagen_url = subir_a_s3(file, folder='productos') if file else None
-        
+
         product = Product(
             nombre=nombre,
             descripcion=descripcion,
             precio=precio,
-            categoria=categoria,
+            categoria=categoria.nombre,
             imagen_url=imagen_url,
             stock=stock,
             created_by=user_id
@@ -73,7 +80,6 @@ def create_product():
         return jsonify({'msg': 'Error al crear el producto', 'error': str(e)}), 500
 
 
-
 @product_bp.route('/<int:id>', methods=['PUT'])
 @jwt_required()
 def update_product(id):
@@ -81,22 +87,44 @@ def update_product(id):
     if claims.get('rol') != 'admin':
         return jsonify({'msg': 'No autorizado'}), 403
 
-    product = Product.query.get_or_404(id)
-    data = request.json
-    for field in ['nombre', 'descripcion', 'precio', 'categoria', 'imagen_url', 'stock']:
-        if field in data:
-            setattr(product, field, data[field])
+    producto = Product.query.get_or_404(id)
+
+    producto.nombre = request.form.get('nombre')
+    producto.descripcion = request.form.get('descripcion')
+    producto.precio = request.form.get('precio')
+    producto.categoria = request.form.get('categoria')
+    producto.stock = request.form.get('stock')
+
+    imagen = request.files.get('imagen')
+    if imagen:
+        imagen_url = subir_a_s3(imagen, folder='productos')
+        producto.imagen_url = imagen_url
+
     db.session.commit()
-    return jsonify({'msg': 'Producto actualizado'})
+    return jsonify({'msg': 'Producto actualizado correctamente'})
 
 @product_bp.route('/<int:id>', methods=['DELETE'])
 @jwt_required()
 def delete_product(id):
     claims = get_jwt()
     if claims.get('rol') != 'admin':
-        return jsonify({'msg': 'No autorizado'}), 403
-    product = Product.query.get_or_404(id)
-    db.session.delete(product)
-    db.session.commit()
-    return jsonify({'msg': 'Producto eliminado'})
+        return jsonify({'msg': 'Solo administradores pueden eliminar productos'}), 403
+
+    try:
+        product = Product.query.get(id)
+        if not product:
+            return jsonify({'msg': 'Producto no encontrado'}), 404
+
+        db.session.delete(product)
+        db.session.commit()
+
+        return jsonify({'msg': 'Producto eliminado exitosamente'}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'msg': 'Error al eliminar el producto',
+            'error': str(e)
+        }), 500
+
 
