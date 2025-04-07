@@ -5,7 +5,6 @@ from flask_jwt_extended import jwt_required, get_jwt_identity,get_jwt
 from .. import db
 from ..models.models import Category, Product
 from ..utils.s3_helper import subir_a_s3
-from ..utils.s3_upload import subir_a_s3
 from dotenv import load_dotenv
 
 product_bp = Blueprint('products', __name__)
@@ -51,7 +50,7 @@ def create_product():
         if not categoria:
             categoria = Category(nombre=categoria_nombre)
             db.session.add(categoria)
-            db.session.flush()  # Para obtener el ID sin hacer commit aún
+            db.session.flush()
 
         imagen_url = subir_a_s3(file, folder='productos') if file else None
 
@@ -59,7 +58,7 @@ def create_product():
             nombre=nombre,
             descripcion=descripcion,
             precio=precio,
-            categoria=categoria.nombre,  # Guarda el nombre en el producto
+            categoria=categoria.nombre,
             imagen_url=imagen_url,
             stock=stock,
             created_by=user_id
@@ -109,9 +108,23 @@ def update_product(id):
 def delete_product(id):
     claims = get_jwt()
     if claims.get('rol') != 'admin':
-        return jsonify({'msg': 'No autorizado'}), 403
-    product = Product.query.get_or_404(id)
-    db.session.delete(product)
-    db.session.commit()
-    return jsonify({'msg': 'Producto eliminado'})
+        return jsonify({'msg': 'Solo administradores pueden eliminar productos'}), 403
+
+    try:
+        product = Product.query.get(id)
+        if not product:
+            return jsonify({'msg': 'Producto no encontrado'}), 404
+
+        db.session.delete(product)
+        db.session.commit()
+
+        return jsonify({'msg': 'Producto eliminado exitosamente'}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'msg': 'Error al eliminar el producto',
+            'error': str(e)
+        }), 500
+
 
