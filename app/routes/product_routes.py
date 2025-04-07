@@ -3,7 +3,7 @@ import os
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity,get_jwt
 from .. import db
-from ..models.models import Product
+from ..models.models import Category, Product
 from ..utils.s3_helper import subir_a_s3
 from dotenv import load_dotenv
 
@@ -40,18 +40,25 @@ def create_product():
     try:
         nombre = request.form['nombre']
         descripcion = request.form.get('descripcion')
-        precio = float(request.form['precio'])  # Convierte a número
-        categoria = request.form['categoria']
-        stock = int(request.form['stock'])      # Convierte a número
+        precio = float(request.form['precio'])
+        categoria_nombre = request.form['categoria'].strip().lower()  # Normaliza
+        stock = int(request.form['stock'])
         file = request.files.get('imagen')
 
+        # Buscar o crear la categoría
+        categoria = Category.query.filter_by(nombre=categoria_nombre).first()
+        if not categoria:
+            categoria = Category(nombre=categoria_nombre)
+            db.session.add(categoria)
+            db.session.flush()  # Para obtener el ID sin hacer commit aún
+
         imagen_url = subir_a_s3(file, folder='productos') if file else None
-        
+
         product = Product(
             nombre=nombre,
             descripcion=descripcion,
             precio=precio,
-            categoria=categoria,
+            categoria=categoria.nombre,  # Guarda el nombre en el producto
             imagen_url=imagen_url,
             stock=stock,
             created_by=user_id
@@ -71,7 +78,6 @@ def create_product():
     except Exception as e:
         db.session.rollback()
         return jsonify({'msg': 'Error al crear el producto', 'error': str(e)}), 500
-
 
 
 @product_bp.route('/<int:id>', methods=['PUT'])
