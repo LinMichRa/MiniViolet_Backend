@@ -1,4 +1,5 @@
 from flask import Flask
+from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_jwt_extended import JWTManager
@@ -22,6 +23,9 @@ def create_app():
     login_manager.init_app(app)
     jwt.init_app(app)
     #print("DB URI en Flask:", app.config.get("SQLALCHEMY_DATABASE_URI"))
+
+    CORS(app, origins=["http://localhost:5173"])
+
     # Registro de Blueprints
     from .routes.auth_routes import auth_bp
     from .routes.product_routes import product_bp
