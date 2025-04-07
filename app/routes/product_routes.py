@@ -4,6 +4,8 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity,get_jwt
 from .. import db
 from ..models.models import Product
+from ..utils.s3_helper import subir_a_s3
+from dotenv import load_dotenv
 
 product_bp = Blueprint('products', __name__)
 
@@ -23,7 +25,10 @@ def get_products():
 @product_bp.route('/', methods=['POST'])
 @jwt_required()
 def create_product():
-    from flask_jwt_extended import get_jwt_identity, get_jwt
+    load_dotenv()
+
+    if request.method == "OPTIONS":
+        return jsonify({"msg": "CORS preflight OK"}), 200
 
     user_id = get_jwt_identity()
     claims = get_jwt()
@@ -32,24 +37,41 @@ def create_product():
     if rol != 'admin':
         return jsonify({'msg': 'Solo administradores pueden crear productos'}), 403
 
-    data = request.json
     try:
+        nombre = request.form['nombre']
+        descripcion = request.form.get('descripcion')
+        precio = float(request.form['precio'])  # Convierte a número
+        categoria = request.form['categoria']
+        stock = int(request.form['stock'])      # Convierte a número
+        file = request.files.get('imagen')
+
+        imagen_url = subir_a_s3(file, folder='productos') if file else None
+        
         product = Product(
-            nombre=data['nombre'],
-            descripcion=data.get('descripcion'),
-            precio=data['precio'],
-            categoria=data['categoria'],
-            imagen_url=data.get('imagen_url'),
-            stock=data['stock'],
-            created_by=int(user_id)
+            nombre=nombre,
+            descripcion=descripcion,
+            precio=precio,
+            categoria=categoria,
+            imagen_url=imagen_url,
+            stock=stock,
+            created_by=user_id
         )
         db.session.add(product)
         db.session.commit()
-        return jsonify({'msg': 'Producto creado exitosamente'}), 201
+
+        return jsonify({
+            'msg': 'Producto creado exitosamente',
+            'producto': {
+                'id': product.id,
+                'nombre': product.nombre,
+                'imagen_url': product.imagen_url
+            }
+        }), 201
 
     except Exception as e:
         db.session.rollback()
         return jsonify({'msg': 'Error al crear el producto', 'error': str(e)}), 500
+
 
 
 @product_bp.route('/<int:id>', methods=['PUT'])

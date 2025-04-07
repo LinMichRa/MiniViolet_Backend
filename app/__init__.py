@@ -14,19 +14,23 @@ jwt = JWTManager()
 
 def create_app():
     load_dotenv()
-    #print(os.getenv("DATABASE_URI"))
-    
+
     app = Flask(__name__)
     app.config.from_object(Config)
 
+    CORS(app, supports_credentials=True, origins=["http://localhost:5173"])
+
+    app.config['AWS_ACCESS_KEY_ID'] = os.getenv('AWS_ACCESS_KEY_ID')
+    app.config['AWS_SECRET_ACCESS_KEY'] = os.getenv('AWS_SECRET_ACCESS_KEY')
+    app.config['AWS_S3_BUCKET'] = os.getenv('AWS_BUCKET_NAME')
+    app.config['AWS_REGION'] = os.getenv('AWS_REGION')
+
     db.init_app(app)
     login_manager.init_app(app)
+    login_manager.login_view = None
+    login_manager.login_message = None
     jwt.init_app(app)
-    #print("DB URI en Flask:", app.config.get("SQLALCHEMY_DATABASE_URI"))
 
-    CORS(app, origins=["http://localhost:5173"])
-
-    # Registro de Blueprints
     from .routes.auth_routes import auth_bp
     from .routes.product_routes import product_bp
     from .routes.cart_routes import cart_bp

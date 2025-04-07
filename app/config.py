@@ -9,3 +9,5 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "jwt-secret")
     STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
+    CORS_HEADERS = 'Content-Type'
+    CORS_SUPPORTS_CREDENTIALS = True
